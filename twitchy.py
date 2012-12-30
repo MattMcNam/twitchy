@@ -27,12 +27,14 @@ import os
 from time import sleep
 import traceback
 import re
+import inspect
+from plugins.BasePlugin import BasePlugin
 
 class Twitchy:
 	def __init__(self):
 		self.ircSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.ircServ = Twitch_Username +'.jtvirc.com'
-		self.ircChan = '#'+ Twitch_Channel
+		self.ircChan = '#'+ Twitch_Channel.lower()
 		
 		# Plugin system loosely based on blog post by lkjoel
 		# http://lkubuntu.wordpress.com/2012/10/02/writing-a-python-plugin-api/
@@ -64,8 +66,14 @@ class Twitchy:
 		for i in potentialPlugins:
 			try:
 				plugin = imp.load_module(self._mainModule, *i["info"])
-				pluginInstance = plugin.getInstance(self)
-				plugins.append(pluginInstance)
+				pluginClasses = inspect.getmembers(plugin, inspect.isclass)
+				print "Found plugin classes:"
+				for className, classObj in pluginClasses:
+					if className == "BasePlugin" or not issubclass(classObj, BasePlugin):
+						continue #Exclude BasePlugin & any classes that are not a subclass of it
+					print className
+					pluginInstance = classObj(self)
+					plugins.append(pluginInstance)
 			except Exception as e:
 				print "Error loading plugin."
 				print traceback.format_exc()
@@ -91,7 +99,7 @@ class Twitchy:
 				print nick+": "+msg
 				
 				for pluginDict in self.commands:
-					if re.search('^'+pluginDict['regex'], msg, re.IGNORECASE):
+					if re.search('^!'+pluginDict['regex'], msg, re.IGNORECASE):
 						handler = pluginDict['handler']
 						handler(nick, msg)
 				#cmdParser.parse(nick, msg, sendMsg)

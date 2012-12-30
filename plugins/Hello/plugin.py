@@ -1,8 +1,5 @@
 from plugins.BasePlugin import BasePlugin
 
-def getInstance(twitchy):
-	return HelloPlugin(twitchy)
-
 class HelloPlugin(BasePlugin):
 	def __init__(self, twitchy):
 		super(HelloPlugin, self).__init__(twitchy)
