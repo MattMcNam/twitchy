@@ -28,6 +28,7 @@ from time import sleep
 import traceback
 import re
 import inspect
+from threading import Thread
 from plugins.BasePlugin import BasePlugin
 
 class Twitchy:
@@ -97,7 +98,6 @@ class Twitchy:
 		if ircMessage.find(' PRIVMSG '+ self.ircChan +' :') != -1:
 			nick = ircMessage.split('!')[0][1:]
 			msg = ircMessage.split(' PRIVMSG '+ self.ircChan +' :')[1]
-			print nick+": "+msg
 			
 			for pluginDict in self.commands:
 				if re.search('^!'+pluginDict['regex'], msg, re.IGNORECASE):
@@ -137,9 +137,6 @@ class Twitchy:
 				print "Mod left: "+nick
 				for handler in self.modHandlers:
 					handler(nick, False)
-		
-		else:
-			print ircMessage
 	
 	def run(self):
 		while True:
@@ -154,9 +151,8 @@ class Twitchy:
 			ircMsgs.pop() #remove final, empty entry
 			
 			# Deal with them
-			# TODO: Threading
 			for ircMsg in ircMsgs:
-				self.handleIRCMessage(ircMsg)
+				Thread(target=self.handleIRCMessage, args=(ircMsg,)).start()
 	
 	def callback(self):
 		print "THE CALLOUT"
