@@ -5,7 +5,7 @@ An IRC bot designed for Twitch.TV channels.
 
 Usage
 -
-Clone this repo, edit Twitch_Username, Twitch_Password and Twitch_Channel and run 'python twitchy.py'.
+Clone this repo, edit Twitch_Username, Twitch_Password and Twitch_Channel and run 'python twitchy.py'.  
 An example plugin is provided which responds to '!hello' and 'hey', as well as detecting users joining or leaving, or their moderator status changing.
 
 Plugins
@@ -33,7 +33,7 @@ Their corresponding handlerFunctions should accept these arguments:
 -  functionName( self, *nickname*, *isJoining* ) *# isJoining; true is joining, false if parting*
 -  functionName( self, *nickname*, *receivingModStatus* ) *# receivingModStatus; true when receiving, false when losing*
 
-**However**, plugins are not limited to these commands. plugins can access any part of Twitchy.py via the self.twitchy object.
+**However**, plugins are not limited to these commands. plugins can access any part of Twitchy.py via the self.twitchy object.  
 Basically, these commands are for convenience, you are free to write plugins that do anything you want.
 
 Example plugins will be uploaded soon to a separate repository, though HelloPlugin should show you the boilerplate code needed to get started.
