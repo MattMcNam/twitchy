@@ -1,4 +1,4 @@
-Copyright (c) 2012, Matthew McNamara
+Copyright (c) 2012, Matthew McNamara  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without  
