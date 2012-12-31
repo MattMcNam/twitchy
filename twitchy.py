@@ -153,9 +153,6 @@ class Twitchy:
 			# Deal with them
 			for ircMsg in ircMsgs:
 				Thread(target=self.handleIRCMessage, args=(ircMsg,)).start()
-	
-	def callback(self):
-		print "THE CALLOUT"
 
 # 'main'
 if __name__ == "__main__":
