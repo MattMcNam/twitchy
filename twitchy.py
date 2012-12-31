@@ -42,6 +42,9 @@ class Twitchy:
 		self._mainModule = 'plugin'
 		
 		self.commands = []
+		self.triggers = []
+		self.joinPartHandlers = []
+		self.modHandlers = []
 	
 	def sendMessage(self, message):
 		self.ircSock.send("PRIVMSG " + self.ircChan + " :" + message + "\r\n")
@@ -81,47 +84,79 @@ class Twitchy:
 	def registerCommand(self, command, pluginFunction):
 		self.commands.append( {'regex': command, 'handler':pluginFunction} )
 	
+	def registerTrigger(self, trigger, pluginFunction):
+		self.triggers.append( {'regex': trigger, 'handler':pluginFunction} )
+	
+	def registerForJoinPartNotifications(self, pluginFunction):
+		self.joinPartHandlers.append( pluginFunction )
+	
+	def registerForModNotifications(self, pluginFunction):
+		self.modHandlers.append( pluginFunction )
+	
+	def handleIRCMessage(self, ircMessage):
+		if ircMessage.find(' PRIVMSG '+ self.ircChan +' :') != -1:
+			nick = ircMessage.split('!')[0][1:]
+			msg = ircMessage.split(' PRIVMSG '+ self.ircChan +' :')[1]
+			print nick+": "+msg
+			
+			for pluginDict in self.commands:
+				if re.search('^!'+pluginDict['regex'], msg, re.IGNORECASE):
+					handler = pluginDict['handler']
+					handler(nick, msg)
+			
+			for pluginDict in self.triggers:
+				if re.search('^'+pluginDict['regex'], msg, re.IGNORECASE):
+					handler = pluginDict['handler']
+					handler(nick, msg)
+		
+		elif ircMessage.find('PING ') != -1:
+			self.ircSock.send('PING :pong\n')
+		
+		elif ircMessage.find('JOIN ') != -1:
+			nick = ircMessage.split('!')[0][1:]
+			print nick +" joined chat"
+			for handler in self.joinPartHandlers:
+				handler(nick, True)
+		
+		elif ircMessage.find('PART ') != -1:
+			nick = ircMessage.split('!')[0][1:]
+			print nick +" left chat"
+			for handler in self.joinPartHandlers:
+				handler(nick, False)
+		
+		elif ircMessage.find('MODE '+ self.ircChan +' +o') != -1:
+			nick = ircMessage.split(' ')[-1]
+			if nick.lower() != Twitch_Username.lower():
+				print "Mod joined: "+nick
+				for handler in self.modHandlers:
+					handler(nick, True)
+		
+		elif ircMessage.find('MODE '+ self.ircChan +' -o') != -1:
+			nick = ircMessage.split(' ')[-1]
+			if nick.lower() != Twitch_Username.lower():
+				print "Mod left: "+nick
+				for handler in self.modHandlers:
+					handler(nick, False)
+		
+		else:
+			print ircMessage
+	
 	def run(self):
 		while True:
-			fullIrcMsg = self.ircSock.recv(4096)	# Don't know JTVIRC's message size limit, if any,
-											# but 4kb should be ok.
-			ircMsgs = fullIrcMsg.split('\r\n')	# Sometimes multiple messages are received at once,
-												# split them and handle individually.
+			# Don't know JTVIRC's message size limit, if any,
+			# but 4kb should be ok.
+			fullIrcMsg = self.ircSock.recv(4096)
+			
+			# Sometimes multiple messages are received at once,
+			# split them and handle individually.
+			ircMsgs = fullIrcMsg.split('\r\n')
+			
 			ircMsgs.pop() #remove final, empty entry
 			
-			ircMsg = ircMsgs[0]
-			for message in ircMsgs:
-				print "IRC:::: "+ message
-			
-			if ircMsg.find(' PRIVMSG '+ self.ircChan +' :') != -1:
-				nick = ircMsg.split('!')[0][1:]
-				msg = ircMsg.split(' PRIVMSG '+ self.ircChan +' :')[1]
-				print nick+": "+msg
-				
-				for pluginDict in self.commands:
-					if re.search('^!'+pluginDict['regex'], msg, re.IGNORECASE):
-						handler = pluginDict['handler']
-						handler(nick, msg)
-				#cmdParser.parse(nick, msg, sendMsg)
-			
-			elif ircMsg.find('PING ') != -1:
-				self.ircSock.send('PING :pong\n')
-			elif ircMsg.find('JOIN ') != -1:
-				print ircMsg.split('!')[0][1:] +" joined chat"
-			elif ircMsg.find('PART ') != -1:
-				print ircMsg.split('!')[0][1:] +" left chat"
-			elif ircMsg.find('MODE '+ self.ircChan +' +o') != -1:
-				nick = ircMsg.split(' ')[-1]
-				if nick.lower() != Twitch_Username.lower():
-					print "Mod joined: "+nick
-					#cmdParser.addMod(nick)
-			elif ircMsg.find('MODE '+ self.ircChan +' -o') != -1:
-				nick = ircMsg.split(' ')[-1]
-				if nick.lower() != Twitch_Username.lower():
-					print "Mod left: "+nick
-					#cmdParser.addMod(nick)
-			else:
-				print ircMsg
+			# Deal with them
+			# TODO: Threading
+			for ircMsg in ircMsgs:
+				self.handleIRCMessage(ircMsg)
 	
 	def callback(self):
 		print "THE CALLOUT"
