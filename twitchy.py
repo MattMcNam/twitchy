@@ -48,13 +48,13 @@ class Twitchy:
 		self.modHandlers = []
 	
 	def sendMessage(self, message):
-		self.ircSock.send("PRIVMSG " + self.ircChan + " :" + message + "\r\n")
+		self.ircSock.send(str("PRIVMSG " + self.ircChan + " :" + message + "\r\n").encode('UTF-8'))
 	
 	def connect(self, port):
 		self.ircSock.connect((self.ircServ, port))
-		self.ircSock.send("Pass " + Twitch_Password + "\r\n")
-		self.ircSock.send("NICK " + Twitch_Username + "\r\n")
-		self.ircSock.send("JOIN " + self.ircChan + "\r\n")
+		self.ircSock.send(str("Pass " + Twitch_Password + "\r\n").encode('UTF-8'))
+		self.ircSock.send(str("NICK " + Twitch_Username + "\r\n").encode('UTF-8'))
+		self.ircSock.send(str("JOIN " + self.ircChan + "\r\n").encode('UTF-8'))
 	
 	def loadPlugins(self):
 		plugins = []
@@ -71,16 +71,16 @@ class Twitchy:
 			try:
 				plugin = imp.load_module(self._mainModule, *i["info"])
 				pluginClasses = inspect.getmembers(plugin, inspect.isclass)
-				print "Found plugin classes:"
+				print("Found plugin classes:")
 				for className, classObj in pluginClasses:
 					if className == "BasePlugin" or not issubclass(classObj, BasePlugin):
 						continue #Exclude BasePlugin & any classes that are not a subclass of it
-					print className
+					print(className)
 					pluginInstance = classObj(self)
 					plugins.append(pluginInstance)
 			except Exception as e:
-				print "Error loading plugin."
-				print traceback.format_exc()
+				print("Error loading plugin.")
+				print(traceback.format_exc())
 	
 	def registerCommand(self, command, pluginFunction):
 		self.commands.append( {'regex': command, 'handler':pluginFunction} )
@@ -114,27 +114,27 @@ class Twitchy:
 		
 		elif ircMessage.find('JOIN ') != -1:
 			nick = ircMessage.split('!')[0][1:]
-			print nick +" joined chat"
+			print(nick +" joined chat")
 			for handler in self.joinPartHandlers:
 				handler(nick, True)
 		
 		elif ircMessage.find('PART ') != -1:
 			nick = ircMessage.split('!')[0][1:]
-			print nick +" left chat"
+			print(nick +" left chat")
 			for handler in self.joinPartHandlers:
 				handler(nick, False)
 		
 		elif ircMessage.find('MODE '+ self.ircChan +' +o') != -1:
 			nick = ircMessage.split(' ')[-1]
 			if nick.lower() != Twitch_Username.lower():
-				print "Mod joined: "+nick
+				print("Mod joined: "+nick)
 				for handler in self.modHandlers:
 					handler(nick, True)
 		
 		elif ircMessage.find('MODE '+ self.ircChan +' -o') != -1:
 			nick = ircMessage.split(' ')[-1]
 			if nick.lower() != Twitch_Username.lower():
-				print "Mod left: "+nick
+				print("Mod left: "+nick)
 				for handler in self.modHandlers:
 					handler(nick, False)
 	
@@ -142,7 +142,7 @@ class Twitchy:
 		while True:
 			# Don't know JTVIRC's message size limit, if any,
 			# but 4kb should be ok.
-			fullIrcMsg = self.ircSock.recv(4096)
+			fullIrcMsg = self.ircSock.recv(4096).decode('UTF-8')
 			
 			# Sometimes multiple messages are received at once,
 			# split them and handle individually.
@@ -163,4 +163,4 @@ if __name__ == "__main__":
 		twitchy.connect(6667)
 		twitchy.run()
 	except Exception as e:
-		print traceback.format_exc()
+		print(traceback.format_exc())
