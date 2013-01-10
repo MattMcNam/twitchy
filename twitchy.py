@@ -46,6 +46,8 @@ class Twitchy:
 		self.triggers = []
 		self.joinPartHandlers = []
 		self.modHandlers = []
+		
+		self.loadedPluginNames = []
 	
 	def sendMessage(self, message):
 		self.ircSock.send(str("PRIVMSG " + self.ircChan + " :" + message + "\r\n").encode('UTF-8'))
@@ -67,17 +69,18 @@ class Twitchy:
 			info = imp.find_module(self._mainModule, [location])
 			potentialPlugins.append({"name": i, "info": info})
 		
+		print("Found plugin classes:")
 		for i in potentialPlugins:
 			try:
 				plugin = imp.load_module(self._mainModule, *i["info"])
 				pluginClasses = inspect.getmembers(plugin, inspect.isclass)
-				print("Found plugin classes:")
 				for className, classObj in pluginClasses:
-					if className == "BasePlugin" or not issubclass(classObj, BasePlugin):
+					if className == "BasePlugin" or className in self.loadedPluginNames or not issubclass(classObj, BasePlugin):
 						continue #Exclude BasePlugin & any classes that are not a subclass of it
 					print(className)
 					pluginInstance = classObj(self)
 					plugins.append(pluginInstance)
+					self.loadedPluginNames.append(className)
 			except Exception as e:
 				print("Error loading plugin.")
 				print(traceback.format_exc())
