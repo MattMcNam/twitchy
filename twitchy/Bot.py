@@ -7,60 +7,60 @@ BSD 2-Clause License
 http://opensource.org/licenses/BSD-2-Clause
 '''
 
-from private import ConfigObj
+import socket
+from threading import Thread
+import os
+import imp
 
 class Bot:
     '''
-    The main class that powers Twitchy.
+    classdocs
     '''
-    
-    
-    def __init__(self):
+
+
+    def __init__(self, username, password):
         '''
         Constructor
         '''
-        self.accounts = []
-        self.config = None
+        self.username = username
+        self.password = password
         
-    def configure(self, filename = "config.cfg"):
-        '''
-        Reads form filename provided and tries to configure Twitchy
-        '''
-        self.config = ConfigObj.ConfigObj(filename)
-        
-        retVal = True
-        
-        if 'admin_accounts' not in self.config:
-            print("[Config] 'admin_accounts' is not present. You need at least one admin account")
-            retVal = False
-        if 'accounts' not in self.config:
-            print("[Config] 'accounts' section is missing!")
-            retVal = False
-        elif len(self.config['accounts']) < 1:
-            print("[Config] One account must be present in the 'accounts' section")
-            retVal = False
-        if 'channels' not in self.config:
-            print("[Config] 'channels' section is missing!")
-            retVal = False
-        elif len(self.config['channels']) < 1:
-            print("[Config] One channel must be present in the 'channels' section")
-            retVal = False
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._connected = False
+        self._pluginFolder = './plugins/'
+    
+    def connect(self):
+        self._socket.connect(("irc.twitch.tv", 6667))
+        self._socket.send("Pass "+ self.password +"\r\n")
+        self._socket.send("NICK "+ self.username +"\r\n")
+        self._connected = True
+    
+    def isConnected(self):
+        return self._connected
+    
+    def loadPluginsForChannel(self, plugins, channel):
+        plugins = []
+        potentialPlugins = []
+        allPlugins = os.listDir(self._pluginFolder)
+        for i in allPlugins:
+            loc = os.path.join(self._pluginFolder, i)
+            if not os.path.isdir(loc) or not 'plugin.py' in os.listDir(loc):
+                continue
+            info = imp.find_module('plugin', [loc])
+    
+    def joinChannel(self, chan):
+        self._socket.send("JOIN #"+ chan +"\r\n")
+    
+    def run(self):
+        while True:
+            fullIRCMsg = self._socket.recv(4096).decode('UTF-8')
             
-        if retVal:
-            print("[Config] Found required settings, checking optional settings")
-        else:
-            return False
+            ircMsgs = fullIRCMsg.split('\r\n')
+            ircMsgs.pop()
+            
+            for msg in ircMsgs:
+                Thread(target=self._handleMessage, args=(msg,)).start()
+    
+    def _handleMessage(self, message):
         
-        if 'delay_all_messages' not in self.config:
-            print("[Config] 'delay_all_messages' not specified, defaulting to True")
-            self.config['delay_all_messages'] = True
-        if 'webui_enabled' not in self.config:
-            print("[Config] 'webui_enabled' not specified, defaulting to False")
-            self.config['webui_enabled'] = False
-        if 'webui_port' not in self.config:
-            print("[Config] 'webui_port' not specified, defaulting to 9090")
-            self.config['webui_port'] = 9090
-        
-        self.config.write()
-        
-        return True
+    
