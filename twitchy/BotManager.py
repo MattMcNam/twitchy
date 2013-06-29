@@ -8,7 +8,7 @@ http://opensource.org/licenses/BSD-2-Clause
 '''
 from threading import Thread
 from private import ConfigObj
-import Bot
+import Bot, PluginManager
 
 class BotManager:
     '''
@@ -23,6 +23,9 @@ class BotManager:
         self.bots = {}
         self._failedBots = []
         self.config = None
+        self._shouldRun = True
+        
+        PluginManager._loadPlugins()
         
     def configure(self, filename = "config.cfg"):
         '''
@@ -88,3 +91,6 @@ class BotManager:
     def run(self):
         for bot in self.bots:
             Thread(target=bot.run).start()
+    
+    def shouldRun(self):
+        return self._shouldRun

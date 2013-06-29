@@ -1,5 +1,5 @@
 '''
-TwitchyBot.py
+Twitchy.py
 Twitchy project
 
 Copyright (c) 2013 Matthew McNamara
@@ -23,11 +23,11 @@ def main():
     try:
         botManager.connect()
         botManager.run()
-    except Exception as e:
+    except:
         print(traceback.format_exc())
         return 1
     
-    while True:
+    while botManager.shouldRun():
         time.sleep(5)
 
 if __name__ == '__main__':
