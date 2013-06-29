@@ -24,7 +24,7 @@ class Bot:
         '''
         self._username = username
         self._password = password
-        self.channel = ""
+        self._channel = ""
         
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._connected = False
@@ -34,7 +34,7 @@ class Bot:
         
         self._commands = []
         self._triggers = []
-        self._joinParthandlers = []
+        self._joinPartHandlers = []
         self._modHandlers = []
     
     def connect(self):
@@ -63,6 +63,9 @@ class Bot:
                 print('Error loading plugin'+ i['name'] +', printing traceback:')
                 print(traceback.format_exc())
     
+    def sendMessage(self, msg):
+        self._socket.send("PRIVMSG #"+ self._channel +" :"+ msg +"\r\n")
+    
     def registerCommand(self, command, handler):
         self._commands.append({'regex': command, 'handler': handler})
     
@@ -77,7 +80,7 @@ class Bot:
     
     def joinChannel(self, chan):
         self._socket.send("JOIN #"+ chan +"\r\n")
-        self.channel = chan
+        self._channel = chan
     
     def run(self):
         while True:

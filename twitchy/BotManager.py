@@ -7,7 +7,7 @@ BSD 2-Clause License
 http://opensource.org/licenses/BSD-2-Clause
 '''
 from threading import Thread
-from private import ConfigObj
+from .private import ConfigObj
 import Bot, PluginManager
 
 class BotManager:
@@ -72,7 +72,8 @@ class BotManager:
     
     def connect(self):
         for account in self.config['accounts']:
-            bot = Bot(account['username'], account['password'])
+            acc = self.config['accounts'][account]
+            bot = Bot.Bot(acc['username'], acc['password'])
             try:
                 bot.connect()
             except:
@@ -81,16 +82,18 @@ class BotManager:
             self.bots[account] = bot
         
         for channel in self.config['channels']:
-            shortAcc = channel['account']
+            chan = self.config['channels'][channel]
+            shortAcc = chan['account']
             if shortAcc in self.bots:
-                self.bots[shortAcc].loadPluginsForChannel(channel['plugins'], channel['channel'])
-                self.bots[shortAcc].joinChannel(channel['channel'])
+                self.bots[shortAcc].loadPluginsForChannel(chan['plugins'], chan['channel'])
+                self.bots[shortAcc].joinChannel(chan['channel'])
             elif shortAcc not in self._failedBots:
                 print("Channel '"+ channel +"' has invalid account")
     
     def run(self):
         for bot in self.bots:
-            Thread(target=bot.run).start()
+            b = self.bots[bot]
+            Thread(target=b.run).start()
     
     def shouldRun(self):
         return self._shouldRun
