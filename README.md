@@ -44,5 +44,5 @@ Twitchy is provided under the BSD License. It is available in full in LICENSE.md
 
 Created by
 -
-Matthew 'Blue' McNamara  
+Matthew McNamara  
 matt@mattmcn.com
