@@ -1,6 +1,6 @@
 # Twitchy
 # An IRC bot designed for Twitch.TV streams
-# Matthew 'Blue' McNamara - matt@mattmcn.com
+# Matthew McNamara - matt@mattmcn.com
 # 
 # Please see the README for instructions on using Twitchy.
 # It is released under the BSD license; the full license
