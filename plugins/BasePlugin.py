@@ -1,7 +1,10 @@
 class BasePlugin(object):
 	def __init__(self, twitchy):
 		self.twitchy = twitchy
-
+	
+	def _kill(self):
+		self.twitchy = None
+	
 	def registerCommand(self, command, handler):
 		self.twitchy.registerCommand(command, handler)
 	

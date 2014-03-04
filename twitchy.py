@@ -1,18 +1,14 @@
 # Twitchy
 # An IRC bot designed for Twitch.TV streams
-# Matthew McNamara - matt@mattmcn.com
 # 
 # Please see the README for instructions on using Twitchy.
 # It is released under the BSD license; the full license
 # available in the LICENSE file.
 
 # CONFIGURATION
-Twitch_Username = 'Bot_Username' # Twitch.TV username for the bot, must be a registered username!
-							## Note that this can be the same as your broadcasting account,
-							## if people aren't paying attention to your bot
-
-Twitch_Password = 'Bot_Password' # Password for above Twitch.TV account
-Twitch_Channel = 'SpBlue' # Twitch.TV channel to connect to
+Twitch_Username = 'BotUsername'  # Twitch.TV username for the bot, must be a registered username!
+Twitch_Password = 'oauth:xxxxxxxxxx'  # OAuth for above Twitch.TV account, http://www.twitchapps.com/tmi/
+Twitch_Channel = 'TwitchChannel'  # Twitch.TV channel to connect to
 
 # NOW DON'T TOUCH ANYTHING ELSE, UNLESS YOU KNOW WHAT YOU'RE DOING
 
@@ -24,33 +20,40 @@ import socket
 import time
 import imp
 import os
-from time import sleep
 import traceback
 import re
 import inspect
 from threading import Thread
 from plugins.BasePlugin import BasePlugin
 
+
 class Twitchy:
 	def __init__(self):
 		self.ircSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.ircServ = Twitch_Username +'.jtvirc.com'
+		self.ircServ = 'irc.twitch.tv'
 		self.ircChan = '#'+ Twitch_Channel.lower()
 		
+		self.connected = False
 		# Plugin system loosely based on blog post by lkjoel
 		# http://lkubuntu.wordpress.com/2012/10/02/writing-a-python-plugin-api/
 		self._pluginFolder = './plugins/'
 		self._mainModule = 'plugin'
+		self._plugins = [] #used for cleanup
 		
 		self.commands = []
 		self.triggers = []
 		self.joinPartHandlers = []
 		self.modHandlers = []
-		
+		self.ignoredUsers = []
 		self.loadedPluginNames = []
+		self.spamMessages = ['codes4free.net', 'g2a.com/r/', 'prizescode.net']
+	
+	def kill(self):
+		for p in self._plugins:
+			p._kill()
 	
 	def sendMessage(self, message):
-		self.ircSock.send(str("PRIVMSG " + self.ircChan + " :" + message + "\r\n").encode('UTF-8'))
+		self.ircSock.send(str('PRIVMSG %s :%s\n' % (self.ircChan, message)).encode('UTF-8'))
 	
 	def connect(self, port):
 		self.ircSock.connect((self.ircServ, port))
@@ -59,7 +62,6 @@ class Twitchy:
 		self.ircSock.send(str("JOIN " + self.ircChan + "\r\n").encode('UTF-8'))
 	
 	def loadPlugins(self):
-		plugins = []
 		potentialPlugins = []
 		allplugins = os.listdir(self._pluginFolder)
 		for i in allplugins:
@@ -79,7 +81,7 @@ class Twitchy:
 						continue #Exclude BasePlugin & any classes that are not a subclass of it
 					print(className)
 					pluginInstance = classObj(self)
-					plugins.append(pluginInstance)
+					self._plugins.append(pluginInstance)
 					self.loadedPluginNames.append(className)
 			except Exception as e:
 				print("Error loading plugin.")
@@ -100,20 +102,34 @@ class Twitchy:
 	def handleIRCMessage(self, ircMessage):
 		if ircMessage.find(' PRIVMSG '+ self.ircChan +' :') != -1:
 			nick = ircMessage.split('!')[0][1:]
+			if nick.lower() in self.ignoredUsers:
+				return
 			msg = ircMessage.split(' PRIVMSG '+ self.ircChan +' :')[1]
+			
+			if re.search('^!ignore', msg, re.IGNORECASE):
+				args = msg.split(" ")
+				self.ignoredUsers.append(args[1])
+				return
 			
 			for pluginDict in self.commands:
 				if re.search('^!'+pluginDict['regex'], msg, re.IGNORECASE):
 					handler = pluginDict['handler']
-					handler(nick, msg)
+					args = msg.split(" ")
+					handler(nick, args)
 			
 			for pluginDict in self.triggers:
 				if re.search('^'+pluginDict['regex'], msg, re.IGNORECASE):
 					handler = pluginDict['handler']
 					handler(nick, msg)
+			
+			for spam in self.spamMessages:
+				if re.search(spam, msg, re.IGNORECASE):
+					time.sleep(1) # Instant timeout might not be picked up by twitch web chat
+					self.sendMessage(".timeout " + nick + "\n")
+					print("Timed out " + nick + " for spam: " + spam + ". Message was: " + msg)
 		
 		elif ircMessage.find('PING ') != -1:
-			self.ircSock.send('PING :pong\n')
+			self.ircSock.send(str("PING :pong\n").encode('UTF-8'))
 		
 		elif ircMessage.find('JOIN ') != -1:
 			nick = ircMessage.split('!')[0][1:]
@@ -140,30 +156,40 @@ class Twitchy:
 				print("Mod left: "+nick)
 				for handler in self.modHandlers:
 					handler(nick, False)
+		
+		else:
+			print(ircMessage)
 	
 	def run(self):
+		line_sep_exp = re.compile(b'\r?\n')
+		socketBuffer = b''
 		while True:
-			# Don't know JTVIRC's message size limit, if any,
-			# but 4kb should be ok.
-			fullIrcMsg = self.ircSock.recv(4096).decode('UTF-8')
-			
-			# Sometimes multiple messages are received at once,
-			# split them and handle individually.
-			ircMsgs = fullIrcMsg.split('\r\n')
-			
-			ircMsgs.pop() #remove final, empty entry
-			
-			# Deal with them
-			for ircMsg in ircMsgs:
-				Thread(target=self.handleIRCMessage, args=(ircMsg,)).start()
+			try:
+				self.connected = True
+				socketBuffer += self.ircSock.recv(1024)
+				
+				ircMsgs = line_sep_exp.split(socketBuffer)
+				
+				socketBuffer = ircMsgs.pop()
+				
+				# Deal with them
+				for ircMsg in ircMsgs:
+					msg = ircMsg.decode('utf-8')
+					Thread(target=self.handleIRCMessage, args=(msg,)).start()
+			except:
+				raise
+				
 
 # 'main'
 if __name__ == "__main__":
-	twitchy = Twitchy()
-	
-	try:
-		twitchy.loadPlugins()
-		twitchy.connect(6667)
-		twitchy.run()
-	except Exception as e:
-		print(traceback.format_exc())
+	while True:
+		twitchy = Twitchy()
+		try:
+			twitchy.loadPlugins()
+			twitchy.connect(6667)
+			twitchy.run()
+		except Exception as e:
+			print(traceback.format_exc())
+		# If we get here, try to shutdown the bot then restart in 5 seconds
+		twitchy.kill()
+		time.sleep(5)
